@@ -1,34 +1,42 @@
 package at.fhtw.mrp;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
+import at.fhtw.mrp.model.UserRepository;
+import at.fhtw.mrp.server.RegisterHandler;
+import at.fhtw.mrp.server.Router;
+
 import com.sun.net.httpserver.HttpServer;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
 
 public class Main {
-    public static void main(String[] args) throws IOException {
-        System.out.println("Starting server on port 8080...");
+    public static void main(String[] args) throws Exception {
+        int port = 8080;
+        System.out.println("Starting server on port " + port + "...");
 
-        HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
+        HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
+        Router router = new Router();
 
-        server.createContext("/ping", new PingHandler());
+        // In-Memory User Storage
+        UserRepository userRepo = new UserRepository();
 
-        server.setExecutor(null); // default executor
-        server.start();
+        // /register Endpoint
+        router.registerRoute("/register", new RegisterHandler(userRepo));
 
-        System.out.println("Server is running at: http://localhost:8080/ping");
-    }
-
-    static class PingHandler implements HttpHandler {
-        @Override
-        public void handle(HttpExchange exchange) throws IOException {
+        // /ping Endpoint
+        router.registerRoute("/ping", exchange -> {
             String response = "pong";
             exchange.sendResponseHeaders(200, response.length());
             try (OutputStream os = exchange.getResponseBody()) {
                 os.write(response.getBytes());
             }
-        }
+        });
+
+        router.attachRoutesToServer(server);
+
+        server.setExecutor(null);
+        server.start();
+
+        System.out.println("Server ready at http://localhost:" + port + "/ping");
+        System.out.println("Register endpoint at http://localhost:" + port + "/register");
     }
 }
